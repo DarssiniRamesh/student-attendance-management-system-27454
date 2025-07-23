@@ -32,7 +32,8 @@ class User(UserBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     hashed_password: str = Field(nullable=False)
     is_active: bool = Field(default=True)
-    attendances: List["Attendance"] = Relationship(back_populates="user")
+    # Use list of Attendance, and handle forward refs below with model_rebuild()
+    attendances: list["Attendance"] = Relationship(back_populates="user")
 
 class UserCreate(UserBase):
     password: str
@@ -59,7 +60,7 @@ class AttendanceBase(SQLModel):
 class Attendance(AttendanceBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id")
-    user: User = Relationship(back_populates="attendances")
+    user: Optional["User"] = Relationship(back_populates="attendances")
 
 class AttendanceCreate(BaseModel):
     user_id: int
@@ -434,3 +435,5 @@ def custom_openapi():
 
 app.openapi = custom_openapi
 
+# Patch: Rebuild SQLModel models to handle forward refs (required for List["Attendance"]/user: "User" fields)
+SQLModel.model_rebuild()
