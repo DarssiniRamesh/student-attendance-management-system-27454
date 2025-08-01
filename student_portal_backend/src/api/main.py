@@ -157,6 +157,7 @@ app = FastAPI(
         {"name": "Users", "description": "User CRUD and search"},
         {"name": "Attendance", "description": "Attendance marking and retrieval"},
         {"name": "Analytics", "description": "Attendance summary and analytics"},
+        {"name": "SystemConfig", "description": "System configuration (admin/operator only)"},
     ]
 )
 
@@ -173,6 +174,7 @@ def on_startup():
     create_db_and_tables()
     # --- Seed admin user if not present
     from sqlmodel import Session, select
+    from .config_api import SystemConfig
     admin_email = "darssini@kavia.ai"
     admin_password = "Darsh@2k"
     admin_role = "admin"
@@ -191,10 +193,25 @@ def on_startup():
             session.commit()
             session.refresh(user)
             print(f"Seeded admin user {admin_email}")
+        # Ensure SystemConfig table exists and example param is present
+        SQLModel.metadata.create_all(engine)
+        sys_param = session.get(SystemConfig, "example_param")
+        if not sys_param:
+            sys_param = SystemConfig(
+                key="example_param",
+                value="example_value",
+                description="Example system-wide config parameter"
+            )
+            session.add(sys_param)
+            session.commit()
+            print("Seeded example system config parameter")
 
+
+# Register system config endpoints
+from .config_api import router as config_api_router
+app.include_router(config_api_router)
 
 # =================== AUTH ROUTES =====================
-
 # PUBLIC_INTERFACE
 @app.post("/auth/register", response_model=UserRead, tags=["Auth"], summary="Register new user", status_code=201)
 def register(user_in: UserCreate, session: Session = Depends(get_session)):
