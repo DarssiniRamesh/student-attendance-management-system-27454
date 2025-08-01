@@ -170,6 +170,27 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     create_db_and_tables()
+    # --- Seed admin user if not present
+    from sqlmodel import Session, select
+    admin_email = "darssini@kavia.ai"
+    admin_password = "Darsh@2k"
+    admin_role = "admin"
+    with Session(engine) as session:
+        db_user = session.exec(select(User).where(User.email == admin_email)).first()
+        if not db_user:
+            hashed_pw = get_password_hash(admin_password)
+            user = User(
+                email=admin_email,
+                full_name="Darsh Admin",
+                hashed_password=hashed_pw,
+                role=admin_role,
+                is_active=True
+            )
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+            print(f"Seeded admin user {admin_email}")
+
 
 # =================== AUTH ROUTES =====================
 
@@ -193,11 +214,19 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), ses
     """
     Authenticate user and get JWT token. Form fields: username (email), password.
     """
-    user = session.exec(select(User).where(User.email == form_data.username)).first()
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Incorrect email or password")
-    access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
-    return Token(access_token=access_token, token_type="bearer", user=UserRead.from_orm(user))
+    try:
+        user = session.exec(select(User).where(User.email == form_data.username)).first()
+        if not user or not verify_password(form_data.password, user.hashed_password):
+            raise HTTPException(status_code=401, detail="Incorrect email or password")
+        access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
+        return Token(access_token=access_token, token_type="bearer", user=UserRead.from_orm(user))
+    except HTTPException:
+        raise  # Let FastAPI handle intended errors.
+    except Exception as e:
+        # Log the exception for debugging (prints to server log)
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {type(e).__name__}: {str(e)}")
 
 # PUBLIC_INTERFACE
 @app.get("/auth/me", response_model=UserRead, tags=["Auth"], summary="Get own profile")
