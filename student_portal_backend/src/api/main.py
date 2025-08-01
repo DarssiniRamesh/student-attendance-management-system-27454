@@ -46,7 +46,8 @@ class UserRead(BaseModel):
     is_active: bool
 
     class Config:
-        orm_mode = True
+        # Enable use with from_orm (FastAPI/Pydantic v2+)
+        from_attributes = True
 
 class UserUpdate(BaseModel):
     full_name: Optional[str]
@@ -81,7 +82,7 @@ class AttendanceRead(BaseModel):
     user_name: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class Token(BaseModel):
     access_token: str
