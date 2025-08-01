@@ -24,7 +24,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # =================== MODELS =====================
 
 class UserBase(SQLModel):
-    email: EmailStr = Field(unique=True, index=True, nullable=False, description="User email address")
+    email: str = Field(unique=True, index=True, nullable=False, description="User email address")  # Changed from EmailStr to str
     full_name: str = Field(max_length=100, nullable=False, description="Full name of the user")
     role: str = Field(max_length=16, description="Role: student / teacher / admin")
 
